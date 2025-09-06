@@ -1,4 +1,4 @@
-name: Mi Laboratorio con Dominio Fijo (Método Oficial)
+name: Mi Laboratorio con Dominio Fijo (remote.it)
 
 on:
   workflow_dispatch:
@@ -19,34 +19,24 @@ jobs:
           sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
           sudo service ssh start
 
-      # --- SIGUIENDO LA GUÍA OFICIAL QUE ENCONTRASTE ---
-      - name: Instalar y Configurar No-IP DUC
+      # 3. Instala todas tus herramientas
+      - name: Instalar Entorno de Desarrollo
         run: |
-          # Paso 1 y 2 de la guía: Moverse al directorio y descargar
-          cd /usr/local/src/
-          wget http://www.noip.com/client/linux/noip-duc-linux.tar.gz
-          
-          # Paso 3 y 4 de la guía: Descomprimir y entrar a la carpeta
-          tar xf noip-duc-linux.tar.gz
-          cd noip-2.1.9-1/
-          
-          # Paso 5 de la guía: Compilar e instalar (esto instala 'make' y 'gcc' si faltan)
-          sudo apt-get update && sudo apt-get install -y make gcc
-          sudo make install
-          
-          # --- LA SOLUCIÓN PROFESIONAL: CREAR EL ARCHIVO DE CONFIGURACIÓN ---
-          # En lugar de 'noip2 -C', creamos el archivo directamente con tus datos
-          sudo bash -c 'cat <<EOF > /usr/local/etc/no-ip2.conf
-          # Configuración de No-IP
-          Personal=ricardocraft121@gmail.com
-          Password=titaBELLA
-          Host=vps-ricardo.ddns.net
-          # Fin de la configuración
-          EOF'
-          
-          # Paso final de la guía: Ejecutar el cliente
-          sudo /usr/local/bin/noip2
+          sudo apt-get update
+          sudo apt-get install -y python3 htop
 
-      # Mantiene la VPS viva
+      # 4. Descarga, instala y registra el cliente de remote.it
+      - name: Configurar y Lanzar remote.it
+        run: |
+          # Descarga el instalador
+          wget https://github.com/remoteit/installer/releases/latest/download/remoteit_installer-linux_x86_64
+          # Le da permisos
+          chmod +x ./remoteit_installer-linux_x86_64
+          # Lo ejecuta en modo "headless" (sin preguntas) con tu clave secreta
+          sudo ./remoteit_installer-linux_x86_64 -y -d
+        env:
+          R3_REGISTRATION_KEY: ${{ secrets.REMOTEIT_KEY }}
+
+      # 5. Mantiene la VPS viva
       - name: Mantener viva la conexión
         run: sleep 21000
