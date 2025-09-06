@@ -1,4 +1,4 @@
-name: Laboratorio Kali con Notificacion a Discord
+name: Laboratorio Kali con Notificacion a Discord (CORREGIDO)
 
 on:
   workflow_dispatch:
@@ -8,7 +8,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Crear Entorno Kali y Obtener SSH
-        # Le damos un ID a este paso para poder usar su output más tarde
         id: setup
         run: |
           echo "### Creando contenedor Kali..."
@@ -24,17 +23,21 @@ jobs:
           echo "### Obteniendo la conexión SSH..."
           tmate_ssh=$(docker exec kali tmate -S /tmp/tmate.sock new-session -d \; wait tmate-ready \; display -p '#{tmate_ssh}')
           
-          # Guardamos la conexión como un "output" de este paso para usarla después
           echo "ssh_connection=$tmate_ssh" >> $GITHUB_OUTPUT
       
-      # ¡EL PASO CLAVE!
+      # ¡EL PASO CORREGIDO!
       - name: Enviar Notificación a Discord
+        env:
+          # Guardamos la conexión en una variable de entorno para usarla de forma segura
+          SSH_CONNECTION: ${{ steps.setup.outputs.ssh_connection }}
+          # El webhook también va en una variable para más limpieza
+          WEBHOOK_URL: "https://discord.com/api/webhooks/1398292786876387439/Vmc5Ms5ZoF7GYp8yVwKZV1Q6k1Ht97k5tRRDZOG9_TNJQndDzxHx-1XpZYAQrPjtQvmJ"
         run: |
-          # Usamos el output del paso anterior y lo mandamos por el webhook.
-          # La sintaxis con '`' formatea el comando para que sea fácil de copiar en Discord.
-          curl -H "Content-Type: application/json" -X POST -d \
-          '{"content": "✅ **Nueva VPS de Kali lista.**\n\nCopia y pega esto en Termux:\n\n`'${{ steps.setup.outputs.ssh_connection }}'`"}' \
-          https://discord.com/api/webhooks/1398292786876387439/Vmc5Ms5ZoF7GYp8yVwKZV1Q6k1Ht97k5tRRDZOG9_TNJQndDzxHx-1XpZYAQrPjtQvmJ
+          # Construimos el JSON de forma segura con printf. Esto evita errores de sintaxis de bash.
+          JSON_PAYLOAD=$(printf '{"content": "✅ **Nueva VPS de Kali lista.**\\n\\nCopia y pega esto en Termux:\\n\\n`%s`"}' "$SSH_CONNECTION")
+          
+          # Ejecutamos curl con la variable. Las comillas dobles son cruciales.
+          curl -H "Content-Type: application/json" -X POST -d "$JSON_PAYLOAD" "$WEBHOOK_URL"
 
       - name: Mantener viva la conexión
         run: sleep 21000
