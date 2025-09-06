@@ -1,4 +1,4 @@
-name: Mi Laboratorio con Dominio Fijo (Vps-de-ricardo)
+name: Mi Laboratorio con Dominio Fijo (Prueba No-IP)
 
 on:
   workflow_dispatch:
@@ -7,23 +7,37 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # 1. Trae tus archivos como siempre
+      # 1. Trae tus archivos
       - name: Descargar mis archivos
         uses: actions/checkout@v4
 
-      # 2. Prepara el servidor SSH para el usuario 'runner' que ya existe
+      # 2. Prepara el servidor SSH
       - name: Configurar Servidor SSH
         run: |
           echo "runner:runner" | sudo chpasswd
           sudo usermod -aG sudo runner
+          # IMPORTANTE: Permitimos login con contraseña
+          sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
           sudo service ssh start
 
-      # --- ¡AQUÍ ESTÁ TU DOMINIO PERSONALIZADO! ---
-      # Crea el túnel inverso a Serveo.net con el nombre que elegiste.
-      - name: Iniciar Túnel con Serveo
+      # 3. Instala todas tus herramientas
+      - name: Instalar Entorno de Desarrollo
         run: |
-          ssh -o StrictHostKeyChecking=no -R Vps-de-ricardo:80:localhost:22 serveo.net &
+          sudo apt-get update
+          sudo apt-get install -y python3 htop
 
-      # 4. Mantiene la VPS viva
+      # 4. Descarga, instala y configura el cliente de No-IP con TUS DATOS
+      - name: Configurar y Lanzar No-IP DUC
+        run: |
+          # Descarga el cliente de No-IP
+          wget https://dmej8g5cpdyqd.cloudfront.net/downloads/noip-duc-linux.tar.gz
+          tar xf noip-duc-linux.tar.gz
+          cd noip-2.1.9-1/
+          # Compila e instala el cliente
+          sudo make install
+          # Configura el cliente usando tus datos de ejemplo
+          sudo /usr/local/bin/noip2 -C -u ricardocraft121@gmail.com -p titaBELLA -U 30 -S
+        
+      # 5. Mantiene la VPS viva
       - name: Mantener viva la conexión
         run: sleep 21000
