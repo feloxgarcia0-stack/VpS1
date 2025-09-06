@@ -1,4 +1,4 @@
-name: Mi Laboratorio con Dominio Fijo (remote.it)
+name: Mi Laboratorio con Dominio Fijo (Instalador Oficial)
 
 on:
   workflow_dispatch:
@@ -19,21 +19,15 @@ jobs:
           sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
           sudo service ssh start
 
-      # 3. Instala todas tus herramientas
+      # 3. Instala tus herramientas
       - name: Instalar Entorno de Desarrollo
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3 htop
+          sudo apt-get install -y python3 htop curl
 
-      # 4. Descarga, instala y registra el cliente de remote.it
-      - name: Configurar y Lanzar remote.it
-        run: |
-          # Descarga el instalador
-          wget https://github.com/remoteit/installer/releases/latest/download/remoteit_installer-linux_x86_64
-          # Le da permisos
-          chmod +x ./remoteit_installer-linux_x86_64
-          # Lo ejecuta en modo "headless" (sin preguntas) con tu clave secreta
-          sudo ./remoteit_installer-linux_x86_64 -y -d
+      # --- ¡LA SOLUCIÓN! Usamos el script de instalación oficial de remote.it ---
+      - name: Configurar y Lanzar remote.it (Método Oficial)
+        run: sh -c "$(curl -L https://downloads.remote.it/remoteit/install_agent.sh)"
         env:
           R3_REGISTRATION_KEY: ${{ secrets.REMOTEIT_KEY }}
 
