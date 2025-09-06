@@ -1,4 +1,4 @@
-name: Mi Laboratorio con Dominio Fijo (Método Directo)
+name: Mi Laboratorio con Dominio Fijo 
 
 on:
   workflow_dispatch:
@@ -11,31 +11,25 @@ jobs:
       - name: Descargar mis archivos
         uses: actions/checkout@v4
 
-      # 2. Prepara el servidor SSH
+      # 2. Prepara el servidor SSH (VERSIÓN CORREGIDA)
       - name: Configurar Servidor SSH
         run: |
-          sudo apt-get update && sudo apt-get install -y openssh-server
-          sudo useradd -m runner
+          # No creamos el usuario 'runner', solo le ponemos la contraseña que queremos
           echo "runner:runner" | sudo chpasswd
+          # Nos aseguramos de que tenga permisos de administrador
           sudo usermod -aG sudo runner
+          # Iniciamos el servicio SSH
           sudo service ssh start
 
-      # --- TRADUCCIÓN DE LA GUÍA QUE ENCONTRASTE ---
+      # 3. Instala y Configura Ngrok Manualmente
       - name: Instalar y Configurar Ngrok Manualmente
         run: |
-          # Paso 4 de la guía: Descargar Ngrok (usando la URL actual)
           wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz -O ngrok.tgz
-          
-          # Paso 5 de la guía: Descomprimir el archivo (Ngrok ahora usa .tgz, no .zip)
           sudo tar -xvzf ngrok.tgz -C /usr/local/bin
-          
-          # Paso 7 de la guía: Autenticar tu cuenta de Ngrok
           ngrok config add-authtoken 32J94PqTyY3gqdd30p1zfcXqLDp_7dEgKrE4n5mgeAC2pjA4z
-          
-          # Paso 8 de la guía: Iniciar el túnel en segundo plano
           echo "Iniciando túnel Ngrok en segundo plano..."
           ngrok tcp 22 &
 
-      # Mantiene la VPS viva
+      # 4. Mantiene la VPS viva
       - name: Mantener viva la conexión
         run: sleep 21000
