@@ -1,4 +1,4 @@
-name: Laboratorio Kali con localhost.run (Sin Complicaciones)
+name: Laboratorio Kali con localhost.run (CORREGIDO)
 
 on:
   workflow_dispatch:
@@ -10,8 +10,8 @@ jobs:
       - name: Crear Entorno Kali y Preparar SSH
         run: |
           echo "### PASO 1: Creando un contenedor Kali Linux limpio..."
-          # Mapeamos el puerto 22 del contenedor al puerto 22 del host
-          docker run --rm -d --name kali -p 22:22 kalilinux/kali-rolling tail -f /dev/null
+          # ¡EL CAMBIO CLAVE #1! Mapeamos el puerto 2222 del HOST al 22 del CONTENEDOR.
+          docker run --rm -d --name kali -p 2222:22 kalilinux/kali-rolling tail -f /dev/null
 
           echo "### PASO 2: Instalando herramientas y servidor SSH DENTRO de Kali..."
           docker exec kali apt-get update
@@ -27,7 +27,6 @@ jobs:
             sqlmap 
 
           echo "### PASO 3: Creando usuario y contraseña para la conexión..."
-          # localhost.run SÍ necesita un usuario y contraseña para conectar
           docker exec kali bash -c "useradd -m -s /bin/bash kali && echo 'kali:kali' | chpasswd && adduser kali sudo"
           docker exec kali bash -c "echo 'PasswordAuthentication yes' >> /etc/ssh/sshd_config"
           docker exec kali service ssh restart
@@ -35,10 +34,8 @@ jobs:
       - name: Iniciar Túnel con localhost.run y Mostrar Dirección
         run: |
           echo "### PASO 4: Iniciando el túnel SSH..."
-          # -o StrictHostKeyChecking=no -> Acepta la clave del host automáticamente
-          # -R 80:localhost:22 -> Pide un túnel del puerto 80 remoto al 22 local (el del host)
-          # >/dev/null 2> connection.log & -> Redirige la salida a un archivo y lo manda a segundo plano
-          ssh -o StrictHostKeyChecking=no -R 80:localhost:22 ssh.localhost.run >/dev/null 2> connection.log &
+          # ¡EL CAMBIO CLAVE #2! Le decimos a localhost.run que se conecte al puerto 2222.
+          ssh -o StrictHostKeyChecking=no -R 80:localhost:2222 ssh.localhost.run >/dev/null 2> connection.log &
 
           echo "### Esperando a que se establezca la conexión..."
           sleep 8
@@ -46,7 +43,6 @@ jobs:
           echo "================================================================================"
           echo "COPIA Y PEGA EL COMANDO SSH QUE APARECE ABAJO EN TU TERMINAL:"
           echo ""
-          # Leemos el archivo donde guardamos la conexión y te lo mostramos
           cat connection.log
           echo ""
           echo "La contraseña es: kali"
