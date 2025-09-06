@@ -1,4 +1,4 @@
-name: Laboratorio Kali Directo (Sin Complicaciones)
+name: Laboratorio Kali Aislado (Solucion Definitiva)
 
 on:
   workflow_dispatch:
@@ -7,20 +7,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # 1. Configurar los repositorios de Kali Linux
-      - name: Configurar Repositorios de Kali
+      - name: Crear Entorno Kali, Instalar Todo y Exponer con tmate
         run: |
-          # Añadimos la clave GPG de Kali
-          wget -q -O - https://archive.kali.org/archive-key.asc | sudo apt-key add -
-          # Añadimos los repositorios a la lista de fuentes
-          sudo apt-add-repository "deb https://http.kali.org/kali kali-rolling main non-free contrib"
-          sudo apt-get update
+          echo "### PASO 1: Creando un contenedor Kali Linux limpio y real..."
+          # Usamos la imagen oficial de Kali. -d lo corre en segundo plano. --rm lo borra al terminar.
+          docker run --rm -d --name kali kalilinux/kali-rolling tail -f /dev/null
 
-      # 2. Instalar todas tus herramientas y tmate
-      - name: Instalar Herramientas de Desarrollo y Pentesting
-        run: |
-          # El -yq evita cualquier pregunta durante la instalación
-          sudo apt-get install -yq \
+          echo "### PASO 2: Instalando tus herramientas DENTRO del contenedor Kali..."
+          # Usamos 'docker exec' para ejecutar comandos DENTRO de Kali de forma segura.
+          docker exec kali apt-get update
+          docker exec kali apt-get install -yq \
             tmate \
             htop \
             golang-go \
@@ -30,11 +26,23 @@ jobs:
             nmap \
             sqlmap 
 
-      # 3. ¡LA SOLUCIÓN! Desactivar la barra verde y lanzar tmate
-      - name: Conexión SSH vía tmate (Sin Barra de Estado)
-        uses: mxschmitt/action-tmate@v3
-        with:
-          # Este comando se ejecuta antes de lanzar tmate, creando el archivo de configuración
-          # para desactivar la molesta barra de estado verde.
-          install: |
-            echo 'set -g status off' > ~/.tmate.conf
+          echo "### PASO 3: Configurando tmate para eliminar la barra verde..."
+          # Creamos el archivo de configuración DENTRO del contenedor para el usuario root.
+          docker exec kali bash -c "echo 'set -g status off' > /root/.tmate.conf"
+
+          echo "### PASO 4: Obteniendo la conexión SSH..."
+          # Generamos la sesión, esperamos a que esté lista y la extraemos.
+          # El 'set -euo pipefail' asegura que el script falle si algo va mal.
+          set -euo pipefail
+          tmate_ssh=$(docker exec kali tmate -S /tmp/tmate.sock new-session -d \; wait tmate-ready \; display -p '#{tmate_ssh}')
+          
+          echo "================================================================================"
+          echo "COPIA Y PEGA ESTO EN TU TERMINAL (NO HAY USUARIO NI CONTRASEÑA):"
+          echo ""
+          echo "$tmate_ssh"
+          echo ""
+          echo "================================================================================"
+      
+      # Mantenemos el job vivo para que te puedas conectar
+      - name: Mantener viva la conexión
+        run: sleep 21000
