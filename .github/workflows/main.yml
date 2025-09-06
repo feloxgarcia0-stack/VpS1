@@ -1,4 +1,4 @@
-name: Mi Laboratorio con Dominio Fijo 
+name: Mi Laboratorio con Dominio Fijo (Vps-de-ricardo)
 
 on:
   workflow_dispatch:
@@ -11,24 +11,18 @@ jobs:
       - name: Descargar mis archivos
         uses: actions/checkout@v4
 
-      # 2. Prepara el servidor SSH (VERSIÓN CORREGIDA)
+      # 2. Prepara el servidor SSH para el usuario 'runner' que ya existe
       - name: Configurar Servidor SSH
         run: |
-          # No creamos el usuario 'runner', solo le ponemos la contraseña que queremos
           echo "runner:runner" | sudo chpasswd
-          # Nos aseguramos de que tenga permisos de administrador
           sudo usermod -aG sudo runner
-          # Iniciamos el servicio SSH
           sudo service ssh start
 
-      # 3. Instala y Configura Ngrok Manualmente
-      - name: Instalar y Configurar Ngrok Manualmente
+      # --- ¡AQUÍ ESTÁ TU DOMINIO PERSONALIZADO! ---
+      # Crea el túnel inverso a Serveo.net con el nombre que elegiste.
+      - name: Iniciar Túnel con Serveo
         run: |
-          wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz -O ngrok.tgz
-          sudo tar -xvzf ngrok.tgz -C /usr/local/bin
-          ngrok config add-authtoken 32J94PqTyY3gqdd30p1zfcXqLDp_7dEgKrE4n5mgeAC2pjA4z
-          echo "Iniciando túnel Ngrok en segundo plano..."
-          ngrok tcp 22 &
+          ssh -o StrictHostKeyChecking=no -R Vps-de-ricardo:80:localhost:22 serveo.net &
 
       # 4. Mantiene la VPS viva
       - name: Mantener viva la conexión
