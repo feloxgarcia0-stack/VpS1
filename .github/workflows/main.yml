@@ -1,4 +1,4 @@
-name: Laboratorio Kali - Version Inteligente
+name: Laboratorio Kali con Notificacion a Discord
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Crear Entorno Kali, Instalar Todo y Exponer con tmate
+      - name: Crear Entorno Kali y Obtener SSH
         # Le damos un ID a este paso para poder usar su output más tarde
         id: setup
         run: |
@@ -16,7 +16,7 @@ jobs:
 
           echo "### Instalando herramientas y tmate..."
           docker exec kali apt-get update
-          docker exec kali apt-get install -yq tmate htop golang-go default-jdk nodejs npm nmap sqlmap 
+          docker exec kali apt-get install -yq tmate curl htop golang-go default-jdk nodejs npm nmap sqlmap 
 
           echo "### Configurando tmate sin barra verde..."
           docker exec kali bash -c "echo 'set -g status off' > /root/.tmate.conf"
@@ -24,17 +24,17 @@ jobs:
           echo "### Obteniendo la conexión SSH..."
           tmate_ssh=$(docker exec kali tmate -S /tmp/tmate.sock new-session -d \; wait tmate-ready \; display -p '#{tmate_ssh}')
           
-          # ¡EL CAMBIO CLAVE! Guardamos la conexión como un "output" de este paso
+          # Guardamos la conexión como un "output" de este paso para usarla después
           echo "ssh_connection=$tmate_ssh" >> $GITHUB_OUTPUT
-
-          echo "### La conexión es: $tmate_ssh"
       
-      # ¡EL NUEVO PASO MÁGICO!
-      - name: Crear Anotación con la Conexión SSH
+      # ¡EL PASO CLAVE!
+      - name: Enviar Notificación a Discord
         run: |
-          # Usamos el output del paso anterior para crear una anotación de advertencia.
-          # Esto es súper rápido y fácil de leer para el CLI.
-          echo "::warning title=Conexion SSH Lista::${{ steps.setup.outputs.ssh_connection }}"
+          # Usamos el output del paso anterior y lo mandamos por el webhook.
+          # La sintaxis con '`' formatea el comando para que sea fácil de copiar en Discord.
+          curl -H "Content-Type: application/json" -X POST -d \
+          '{"content": "✅ **Nueva VPS de Kali lista.**\n\nCopia y pega esto en Termux:\n\n`'${{ steps.setup.outputs.ssh_connection }}'`"}' \
+          https://discord.com/api/webhooks/1398292786876387439/Vmc5Ms5ZoF7GYp8yVwKZV1Q6k1Ht97k5tRRDZOG9_TNJQndDzxHx-1XpZYAQrPjtQvmJ
 
       - name: Mantener viva la conexión
         run: sleep 21000
