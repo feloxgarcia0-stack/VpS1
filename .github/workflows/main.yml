@@ -1,4 +1,4 @@
-name: Mi Laboratorio con Dominio Fijo (Prueba No-IP)
+name: Mi Laboratorio con Dominio Fijo (Método Oficial)
 
 on:
   workflow_dispatch:
@@ -16,28 +16,37 @@ jobs:
         run: |
           echo "runner:runner" | sudo chpasswd
           sudo usermod -aG sudo runner
-          # IMPORTANTE: Permitimos login con contraseña
           sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
           sudo service ssh start
 
-      # 3. Instala todas tus herramientas
-      - name: Instalar Entorno de Desarrollo
+      # --- SIGUIENDO LA GUÍA OFICIAL QUE ENCONTRASTE ---
+      - name: Instalar y Configurar No-IP DUC
         run: |
-          sudo apt-get update
-          sudo apt-get install -y python3 htop
-
-      # 4. Descarga, instala y configura el cliente de No-IP con TUS DATOS
-      - name: Configurar y Lanzar No-IP DUC
-        run: |
-          # Descarga el cliente de No-IP
-          wget https://dmej8g5cpdyqd.cloudfront.net/downloads/noip-duc-linux.tar.gz
+          # Paso 1 y 2 de la guía: Moverse al directorio y descargar
+          cd /usr/local/src/
+          wget http://www.noip.com/client/linux/noip-duc-linux.tar.gz
+          
+          # Paso 3 y 4 de la guía: Descomprimir y entrar a la carpeta
           tar xf noip-duc-linux.tar.gz
           cd noip-2.1.9-1/
-          # Compila e instala el cliente
+          
+          # Paso 5 de la guía: Compilar e instalar (esto instala 'make' y 'gcc' si faltan)
+          sudo apt-get update && sudo apt-get install -y make gcc
           sudo make install
-          # Configura el cliente usando tus datos de ejemplo
-          sudo /usr/local/bin/noip2 -C -u ricardocraft121@gmail.com -p titaBELLA -U 30 -S
-        
-      # 5. Mantiene la VPS viva
+          
+          # --- LA SOLUCIÓN PROFESIONAL: CREAR EL ARCHIVO DE CONFIGURACIÓN ---
+          # En lugar de 'noip2 -C', creamos el archivo directamente con tus datos
+          sudo bash -c 'cat <<EOF > /usr/local/etc/no-ip2.conf
+          # Configuración de No-IP
+          Personal=ricardocraft121@gmail.com
+          Password=titaBELLA
+          Host=vps-ricardo.ddns.net
+          # Fin de la configuración
+          EOF'
+          
+          # Paso final de la guía: Ejecutar el cliente
+          sudo /usr/local/bin/noip2
+
+      # Mantiene la VPS viva
       - name: Mantener viva la conexión
         run: sleep 21000
