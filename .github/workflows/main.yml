@@ -29,7 +29,7 @@ jobs:
       - name: Configurar y Lanzar remote.it (Método Oficial)
         run: sh -c "$(curl -L https://downloads.remote.it/remoteit/install_agent.sh)"
         env:
-          R3_REGISTRATION_KEY: ${{ secrets.REMOTEIT_KEY }}
+          R3_REGISTRATION_KEY: ${{ secrets.REMOTEIT_KEY2 }}
 
       # 5. Mantiene la VPS viva
       - name: Mantener viva la conexión
