@@ -1,13 +1,13 @@
-name: Laboratorio Kali con serveo.net (Sin Password)
+name: Laboratorio Kali DIRECTO (con serveo.net)
 
 on:
   workflow_dispatch:
 
-jobs:
+jobs
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Crear Entorno Kali y Preparar SSH con Clave
+      - name: Crear Entorno Kali y Preparar SSH con Contraseña
         run: |
           echo "### PASO 1: Creando contenedor Kali..."
           docker run --rm -d --name kali -p 2222:22 kalilinux/kali-rolling tail -f /dev/null
@@ -16,25 +16,18 @@ jobs:
           docker exec kali apt-get update
           docker exec kali apt-get install -yq openssh-server sudo curl htop git golang-go default-jdk nodejs npm nmap sqlmap
 
-          echo "### PASO 3: Generando clave SSH temporal..."
-          # Generamos una clave sin contraseña (-N "") para esta sesión
-          ssh-keygen -t ed25519 -f temp_key -N ""
-          
-          echo "### PASO 4: Configurando SSH en Kali para aceptar SOLO esta clave..."
-          # Desactivamos la autenticación por contraseña para máxima seguridad y para cumplir tu requisito
-          docker exec kali bash -c "echo 'PasswordAuthentication no' >> /etc/ssh/sshd_config"
-          docker exec kali bash -c "echo 'PubkeyAuthentication yes' >> /etc/ssh/sshd_config"
-          
-          # Creamos el directorio .ssh y copiamos la clave pública DENTRO del contenedor
-          docker exec kali mkdir -p /root/.ssh
-          docker cp temp_key.pub kali:/root/.ssh/authorized_keys
-          docker exec kali chown -R root:root /root/.ssh
+          echo "### PASO 3: Configurando SSH para aceptar contraseña..."
+          # CREAMOS EL USUARIO Y CONTRASEÑA
+          docker exec kali bash -c "useradd -m -s /bin/bash kali && echo 'kali:kali' | chpasswd && adduser kali sudo"
+          # HABILITAMOS LA AUTENTICACIÓN POR CONTRASEÑA (LA CLAVE DEL ÉXITO)
+          docker exec kali sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+          docker exec kali sed -i 's/PasswordAuthentication no/#PasswordAuthentication no/g' /etc/ssh/sshd_config
           docker exec kali service ssh restart
 
       - name: Iniciar Túnel con serveo.net y Mostrar Acceso
         run: |
-          echo "### PASO 5: Iniciando el túnel con serveo.net..."
-          # Redirigimos la salida de serveo.net a un archivo de log
+          echo "### PASO 4: Iniciando el túnel con serveo.net..."
+          # Redirigimos la salida para capturarla
           ssh -o StrictHostKeyChecking=no -R 80:localhost:2222 serveo.net > connection.log 2>&1 &
           
           echo "### Esperando a que se establezca la conexión..."
@@ -44,26 +37,16 @@ jobs:
           CONNECTION_HOST=$(grep -o '[a-zA-Z0-9]*\.serveo\.net' connection.log | head -n 1)
 
           echo "================================================================================"
-          echo "                       ¡ACCESO LISTO! SIGUE ESTOS 3 PASOS:"
+          echo "                      ¡ACCESO DIRECTO Y DESECHABLE!"
           echo "================================================================================"
           echo ""
-          echo "PASO 1: Copia TODO el bloque de la clave privada de abajo,"
-          echo "        desde '-----BEGIN...' hasta '-----END...'."
+          echo "COPIA Y PEGA ESTE ÚNICO COMANDO EN TU TERMINAL:"
           echo ""
-          echo "-------------------------INICIO DE LA CLAVE PRIVADA-------------------------"
-          cat temp_key
-          echo "--------------------------FIN DE LA CLAVE PRIVADA---------------------------"
+          echo "ssh kali@$CONNECTION_HOST"
           echo ""
-          echo "PASO 2: Pega el texto en un archivo en tu PC. Llámalo 'github_key'."
-          echo "        (Asegúrate de que no tenga extensión .txt)"
-          echo ""
-          echo "PASO 3: Abre tu terminal, ve a la carpeta donde guardaste el archivo y ejecuta:"
-          echo "        (En Windows/Linux/Mac, puede que necesites ejecutar 'chmod 600 github_key' primero)"
-          echo ""
-          echo "ssh -i github_key root@$CONNECTION_HOST"
+          echo "CUANDO TE PIDA LA CONTRASEÑA, ES: kali"
           echo ""
           echo "================================================================================"
           
-      # Mantenemos el job vivo para que te puedas conectar
       - name: Mantener viva la conexión
         run: sleep 21000
