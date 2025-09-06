@@ -1,9 +1,9 @@
-name: Laboratorio Kali DIRECTO (con serveo.net)
+name: Laboratorio Kali DIRECTO (Sin Fallos)
 
 on:
   workflow_dispatch:
 
-jobs: # <-- ¡AQUÍ ESTABA EL ERROR! Faltaban los dos puntos.
+jobs:
   build:
     runs-on: ubuntu-latest
     steps:
@@ -17,34 +17,32 @@ jobs: # <-- ¡AQUÍ ESTABA EL ERROR! Faltaban los dos puntos.
           docker exec kali apt-get install -yq openssh-server sudo curl htop git golang-go default-jdk nodejs npm nmap sqlmap
 
           echo "### PASO 3: Configurando SSH para aceptar contraseña..."
-          # CREAMOS EL USUARIO Y CONTRASEÑA
           docker exec kali bash -c "useradd -m -s /bin/bash kali && echo 'kali:kali' | chpasswd && adduser kali sudo"
-          # HABILITAMOS LA AUTENTICACIÓN POR CONTRASEÑA (LA CLAVE DEL ÉXITO)
           docker exec kali sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/g' /etc/ssh/sshd_config
           docker exec kali sed -i 's/PasswordAuthentication no/#PasswordAuthentication no/g' /etc/ssh/sshd_config
           docker exec kali service ssh restart
 
-      - name: Iniciar Túnel con serveo.net y Mostrar Acceso
+      - name: Iniciar Túnel con serveo.net y Mostrar Log Completo
         run: |
           echo "### PASO 4: Iniciando el túnel con serveo.net..."
-          # Redirigimos la salida para capturarla
+          # Redirigimos la salida COMPLETA al archivo de log
           ssh -o StrictHostKeyChecking=no -R 80:localhost:2222 serveo.net > connection.log 2>&1 &
           
           echo "### Esperando a que se establezca la conexión..."
           sleep 10
           
-          # Extraemos la dirección de conexión del log
-          CONNECTION_HOST=$(grep -o '[a-zA-Z0-9]*\.serveo\.net' connection.log | head -n 1)
-
           echo "================================================================================"
-          echo "                      ¡ACCESO DIRECTO Y DESECHABLE!"
+          echo "               ¡YA BASTA DE ERRORES! AQUÍ ESTÁ EL LOG COMPLETO:"
           echo "================================================================================"
           echo ""
-          echo "COPIA Y PEGA ESTE ÚNICO COMANDO EN TU TERMINAL:"
+          echo "Busca la línea que empieza con 'Forwarding SSH' y copia el comando."
+          echo "Ejemplo: ssh -p 12345 kali@serveo.net"
           echo ""
-          echo "ssh kali@$CONNECTION_HOST"
+          echo "--------------------------- CONTENIDO DEL LOG ----------------------------"
+          cat connection.log
+          echo "--------------------------------------------------------------------------"
           echo ""
-          echo "CUANDO TE PIDA LA CONTRASEÑA, ES: kali"
+          echo "La contraseña siempre es: kali"
           echo ""
           echo "================================================================================"
           
