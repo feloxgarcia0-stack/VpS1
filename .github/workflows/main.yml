@@ -1,4 +1,4 @@
-name: Mi Laboratorio con Dominio Fijo (Instalador Oficial)
+name: VPS Kali linux
 
 on:
   workflow_dispatch:
@@ -7,30 +7,68 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # 1. Trae tus archivos
-      - name: Descargar mis archivos
-        uses: actions/checkout@v4
-
-      # 2. Prepara el servidor SSH
-      - name: Configurar Servidor SSH
+      # 1. Levantar Contenedor Kali, instalar todo y lanzar tmate modificado
+      - name: Levantar Contenedor Kali y Lanzar tmate
         run: |
-          echo "runner:runner" | sudo chpasswd
-          sudo usermod -aG sudo runner
-          sudo sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
-          sudo service ssh start
+          echo "Iniciando contenedor Kali Linux..."
+          # Ejecutamos un contenedor en segundo plano y le damos un nombre
+          docker run -d --name kali \
+            -p 2222:22 \
+            kalilinux/kali-rolling \
+            /bin/bash -c "
+              echo '>>> Actualizando repositorios...'
+              apt-get update
 
-      # 3. Instala tus herramientas
-      - name: Instalar Entorno de Desarrollo
+              echo '>>> Instalando herramientas y tmate...'
+              # DEBIAN_FRONTEND evita que las instalaciones pidan confirmación
+              DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                tmate \
+                openssh-server \
+                sudo \
+                curl \
+                htop \
+                git \
+                golang-go \
+                default-jdk \
+                nodejs \
+                npm \
+                python3
+
+              echo '>>> Creando usuario y configurando permisos...'
+              useradd -m -s /bin/bash kali
+              echo 'kali:kali' | chpasswd
+              echo 'kali ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+              # --- ¡LA SOLUCIÓN CLAVE! ---
+              echo '>>> Creando configuración de tmate para ocultar la barra de estado...'
+              echo 'set -g status off' > /home/kali/.tmate.conf
+              chown kali:kali /home/kali/.tmate.conf
+
+              echo '>>> Iniciando sesión de tmate en segundo plano...'
+              # Ejecutamos tmate como el usuario 'kali' para que lea su .tmate.conf
+              sudo -u kali tmate -S /tmp/tmate.sock new-session -d
+              
+              echo '>>> Esperando a que la sesión esté lista...'
+              tmate -S /tmp/tmate.sock wait tmate-ready
+              
+              echo '---'
+              echo '>>> ¡CONEXIÓN LISTA! Copia y pega esta línea en tu terminal:'
+              # Mostramos la conexión SSH en los logs
+              tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}'
+              echo '---'
+
+              # Mantenemos el contenedor vivo
+              tail -f /dev/null
+            "
+      
+      # 2. Esperar y mostrar los logs del contenedor para que la conexión sea visible
+      - name: Mostrar información de conexión
         run: |
-          sudo apt-get update
-          sudo apt-get install -y python3 htop curl
+          echo "Esperando a que el contenedor se estabilice..."
+          sleep 15
+          echo "Logs del contenedor:"
+          docker logs kali
 
-      # --- ¡LA SOLUCIÓN! Usamos el script de instalación oficial de remote.it ---
-      - name: Configurar y Lanzar remote.it (Método Oficial)
-        run: sh -c "$(curl -L https://downloads.remote.it/remoteit/install_agent.sh)"
-        env:
-          R3_REGISTRATION_KEY: ${{ secrets.REMOTEIT_KEY2 }}
-
-      # 5. Mantiene la VPS viva
+      # 3. Mantener el job vivo durante 6 horas
       - name: Mantener viva la conexión
         run: sleep 21000
