@@ -1,4 +1,4 @@
-name: Laboratorio Kali DIRECTO (Sin Fallos)
+name: Laboratorio Kali Aislado (Solucion Definitiva)
 
 on:
   workflow_dispatch:
@@ -7,44 +7,42 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Crear Entorno Kali y Preparar SSH con Contraseña
+      - name: Crear Entorno Kali, Instalar Todo y Exponer con tmate
         run: |
-          echo "### PASO 1: Creando contenedor Kali..."
-          docker run --rm -d --name kali -p 2222:22 kalilinux/kali-rolling tail -f /dev/null
+          echo "### PASO 1: Creando un contenedor Kali Linux limpio y real..."
+          # Usamos la imagen oficial de Kali. -d lo corre en segundo plano. --rm lo borra al terminar.
+          docker run --rm -d --name kali kalilinux/kali-rolling tail -f /dev/null
 
-          echo "### PASO 2: Instalando herramientas y servidor SSH..."
+          echo "### PASO 2: Instalando tus herramientas DENTRO del contenedor Kali..."
+          # Usamos 'docker exec' para ejecutar comandos DENTRO de Kali de forma segura.
           docker exec kali apt-get update
-          docker exec kali apt-get install -yq openssh-server sudo curl htop git golang-go default-jdk nodejs npm nmap sqlmap
+          docker exec kali apt-get install -yq \
+            tmate \
+            htop \
+            golang-go \
+            default-jdk \
+            nodejs \
+            npm \
+            nmap \
+            sqlmap 
 
-          echo "### PASO 3: Configurando SSH para aceptar contraseña..."
-          docker exec kali bash -c "useradd -m -s /bin/bash kali && echo 'kali:kali' | chpasswd && adduser kali sudo"
-          docker exec kali sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/g' /etc/ssh/sshd_config
-          docker exec kali sed -i 's/PasswordAuthentication no/#PasswordAuthentication no/g' /etc/ssh/sshd_config
-          docker exec kali service ssh restart
+          echo "### PASO 3: Configurando tmate para eliminar la barra verde..."
+          # Creamos el archivo de configuración DENTRO del contenedor para el usuario root.
+          docker exec kali bash -c "echo 'set -g status off' > /root/.tmate.conf"
 
-      - name: Iniciar Túnel con serveo.net y Mostrar Log Completo
-        run: |
-          echo "### PASO 4: Iniciando el túnel con serveo.net..."
-          # Redirigimos la salida COMPLETA al archivo de log
-          ssh -o StrictHostKeyChecking=no -R 80:localhost:2222 serveo.net > connection.log 2>&1 &
-          
-          echo "### Esperando a que se establezca la conexión..."
-          sleep 10
+          echo "### PASO 4: Obteniendo la conexión SSH..."
+          # Generamos la sesión, esperamos a que esté lista y la extraemos.
+          # El 'set -euo pipefail' asegura que el script falle si algo va mal.
+          set -euo pipefail
+          tmate_ssh=$(docker exec kali tmate -S /tmp/tmate.sock new-session -d \; wait tmate-ready \; display -p '#{tmate_ssh}')
           
           echo "================================================================================"
-          echo "               ¡YA BASTA DE ERRORES! AQUÍ ESTÁ EL LOG COMPLETO:"
-          echo "================================================================================"
+          echo "COPIA Y PEGA ESTO EN TU TERMINAL (NO HAY USUARIO NI CONTRASEÑA):"
           echo ""
-          echo "Busca la línea que empieza con 'Forwarding SSH' y copia el comando."
-          echo "Ejemplo: ssh -p 12345 kali@serveo.net"
-          echo ""
-          echo "--------------------------- CONTENIDO DEL LOG ----------------------------"
-          cat connection.log
-          echo "--------------------------------------------------------------------------"
-          echo ""
-          echo "La contraseña siempre es: kali"
+          echo "$tmate_ssh"
           echo ""
           echo "================================================================================"
-          
+      
+      # Mantenemos el job vivo para que te puedas conectar
       - name: Mantener viva la conexión
         run: sleep 21000
