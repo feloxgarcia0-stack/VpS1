@@ -1,4 +1,4 @@
-name: Laboratorio Kali Aislado (Solucion Definitiva)
+name: Laboratorio Kali con localhost.run (Sin Complicaciones)
 
 on:
   workflow_dispatch:
@@ -7,17 +7,17 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Crear Entorno Kali, Instalar Todo y Exponer con tmate
+      - name: Crear Entorno Kali y Preparar SSH
         run: |
-          echo "### PASO 1: Creando un contenedor Kali Linux limpio y real..."
-          # Usamos la imagen oficial de Kali. -d lo corre en segundo plano. --rm lo borra al terminar.
-          docker run --rm -d --name kali kalilinux/kali-rolling tail -f /dev/null
+          echo "### PASO 1: Creando un contenedor Kali Linux limpio..."
+          # Mapeamos el puerto 22 del contenedor al puerto 22 del host
+          docker run --rm -d --name kali -p 22:22 kalilinux/kali-rolling tail -f /dev/null
 
-          echo "### PASO 2: Instalando tus herramientas DENTRO del contenedor Kali..."
-          # Usamos 'docker exec' para ejecutar comandos DENTRO de Kali de forma segura.
+          echo "### PASO 2: Instalando herramientas y servidor SSH DENTRO de Kali..."
           docker exec kali apt-get update
           docker exec kali apt-get install -yq \
-            tmate \
+            openssh-server \
+            sudo \
             htop \
             golang-go \
             default-jdk \
@@ -26,23 +26,32 @@ jobs:
             nmap \
             sqlmap 
 
-          echo "### PASO 3: Configurando tmate para eliminar la barra verde..."
-          # Creamos el archivo de configuración DENTRO del contenedor para el usuario root.
-          docker exec kali bash -c "echo 'set -g status off' > /root/.tmate.conf"
-
-          echo "### PASO 4: Obteniendo la conexión SSH..."
-          # Generamos la sesión, esperamos a que esté lista y la extraemos.
-          # El 'set -euo pipefail' asegura que el script falle si algo va mal.
-          set -euo pipefail
-          tmate_ssh=$(docker exec kali tmate -S /tmp/tmate.sock new-session -d \; wait tmate-ready \; display -p '#{tmate_ssh}')
-          
-          echo "================================================================================"
-          echo "COPIA Y PEGA ESTO EN TU TERMINAL (NO HAY USUARIO NI CONTRASEÑA):"
-          echo ""
-          echo "$tmate_ssh"
-          echo ""
-          echo "================================================================================"
+          echo "### PASO 3: Creando usuario y contraseña para la conexión..."
+          # localhost.run SÍ necesita un usuario y contraseña para conectar
+          docker exec kali bash -c "useradd -m -s /bin/bash kali && echo 'kali:kali' | chpasswd && adduser kali sudo"
+          docker exec kali bash -c "echo 'PasswordAuthentication yes' >> /etc/ssh/sshd_config"
+          docker exec kali service ssh restart
       
+      - name: Iniciar Túnel con localhost.run y Mostrar Dirección
+        run: |
+          echo "### PASO 4: Iniciando el túnel SSH..."
+          # -o StrictHostKeyChecking=no -> Acepta la clave del host automáticamente
+          # -R 80:localhost:22 -> Pide un túnel del puerto 80 remoto al 22 local (el del host)
+          # >/dev/null 2> connection.log & -> Redirige la salida a un archivo y lo manda a segundo plano
+          ssh -o StrictHostKeyChecking=no -R 80:localhost:22 ssh.localhost.run >/dev/null 2> connection.log &
+
+          echo "### Esperando a que se establezca la conexión..."
+          sleep 8
+
+          echo "================================================================================"
+          echo "COPIA Y PEGA EL COMANDO SSH QUE APARECE ABAJO EN TU TERMINAL:"
+          echo ""
+          # Leemos el archivo donde guardamos la conexión y te lo mostramos
+          cat connection.log
+          echo ""
+          echo "La contraseña es: kali"
+          echo "================================================================================"
+
       # Mantenemos el job vivo para que te puedas conectar
       - name: Mantener viva la conexión
         run: sleep 21000
